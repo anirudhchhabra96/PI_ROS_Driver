@@ -51,6 +51,23 @@ public:
   virtual bool requestControllerData(vector6d_t& values) = 0;
 
   /*!
+   * \brief Set the system speed used when moving to writeControllerCommand
+   *        (multiply system speed by the unit vector of the ControllerCommand 
+   *         to get velocity)
+   *
+   * \param speed Desired speed
+   *              mm/second for translation (max of 20)
+   *              deg/second for rotation (max of 11.5)
+   *              Ex: speed=10 results in 10mm/s and 10 deg/sec
+   *                  speed=15 results in 15mm/s and 11.5 deg/sec
+   *
+   * \returns True on successful write.
+  */
+  virtual bool writeControllerSpeed(uint32_t speed) = 0;
+
+  virtual bool setVelocityMode(void) = 0;
+
+  /*!
    * \brief Writes a joint command together with a keepalive signal onto the socket being sent to
    * the robot.
    *
@@ -82,7 +99,7 @@ public:
   /*!
    * \brief Halts the hexapod.
    *
-   * \returns True if request successful.
+   * \returns True if request successfuwriteControllerSpeedl.
    */
   virtual bool haltHexapod() = 0;
 
@@ -195,6 +212,23 @@ public:
   bool requestControllerData(vector6d_t& values);
 
   /*!
+   * \brief Set the system speed used when moving to writeControllerCommand
+   *        (multiply system speed by the unit vector of the ControllerCommand 
+   *         to get velocity)
+   *
+   * \param speed Desired speed
+   *              mm/second for translation (max of 20)
+   *              deg/second for rotation (max of 11.5)
+   *              Ex: speed=10 results in 10mm/s and 10 deg/sec
+   *                  speed=15 results in 15mm/s and 11.5 deg/sec
+   *
+   * \returns True on successful write.
+  */
+  bool writeControllerSpeed(uint32_t speed);
+
+  bool setVelocityMode(void);
+
+  /*!
    * \brief Writes a joint command together with a keepalive signal onto the socket being sent to
    * the robot.
    *
@@ -247,7 +281,11 @@ private:
   int pi_id_;
   uint32_t communication_timeout_ms_;
 
+  std::array<int, 6> vel_control_ = {1, 1, 1, 1, 1, 1};
+
   const char axis_[12] = "X Y Z U V W";
+
+  char vel_axis[12] = "X Y Z U V W";
   double joint_pos_[6] = {0, 0, 0, 0, 0, 0};
 };
 
@@ -287,6 +325,29 @@ public:
     values = mock_values_;
     return true;
   };
+
+  /*!
+   * \brief Set the system speed used when moving to writeControllerCommand
+   *        (multiply system speed by the unit vector of the ControllerCommand 
+   *         to get velocity)
+   *
+   * \param speed Desired speed
+   *              mm/second for translation (max of 20)
+   *              deg/second for rotation (max of 11.5)
+   *              Ex: speed=10 results in 10mm/s and 10 deg/sec
+   *                  speed=15 results in 15mm/s and 11.5 deg/sec
+   *
+   * \returns True on successful write.
+  */
+  bool writeControllerSpeed(uint32_t speed)
+  {
+    return true;
+  }
+
+  bool setVelocityMode(void)
+  {
+    return true;
+  }
 
   /*!
    * \brief Stores a joint command to use as position on next read.
