@@ -26,6 +26,7 @@
 #include <actionlib/server/simple_action_server.h>
 #include <hardware_interface/joint_command_interface.h>
 #include <hardware_interface/joint_state_interface.h>
+
 #include <hardware_interface/robot_hw.h>
 #include <pi_hexapod_control/visual_joint_generator.h>
 #include <pi_hexapod_msgs/ReferencingAction.h>
@@ -36,6 +37,7 @@
 #include <std_msgs/String.h>
 #include <std_srvs/SetBool.h>
 #include <std_srvs/Trigger.h>
+#include <trajectory_msgs/JointTrajectory.h>
 
 #include "pi_hexapod_control/pi_driver.h"
 
@@ -148,6 +150,8 @@ public:
    */
   bool stopServiceCallback(std_srvs::TriggerRequest& req, std_srvs::TriggerResponse& res);
 
+  void qdotCallback(const trajectory_msgs::JointTrajectoryConstPtr& trajectory);
+
 protected:
   /*!
    * \brief Callback to reference Hexapod via ROS Action
@@ -174,8 +178,13 @@ private:
   ros::Publisher pub_error_id_;
   ros::Publisher pub_error_msg_;
 
+  ros::Subscriber qdot_sub;
+
   hardware_interface::JointStateInterface js_interface_;
   hardware_interface::PositionJointInterface pj_interface_;
+
+  hardware_interface::JointStateInterface vjs_interface_;
+  hardware_interface::VelocityJointInterface vj_interface_;
 
   std::vector<std::string> joint_names_;
   vector6d_t joint_position_command_;
@@ -187,6 +196,13 @@ private:
   vector36d_t visual_joint_positions_;
   vector36d_t visual_joint_velocities_;
   vector36d_t visual_joint_efforts_;
+
+  std::vector<std::string> velocity_joint_names_;
+  vector6d_t joint_velocity_command_;
+
+  vector6d_t vj_positions_;
+  vector6d_t vj_velocities_;
+  vector6d_t vj_efforts_;
 
 
   volatile bool control_mode_enabled_;
