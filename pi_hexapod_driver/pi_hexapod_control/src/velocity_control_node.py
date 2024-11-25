@@ -7,7 +7,7 @@ import numpy as np
 import math
 import time
 import warnings
-from std_msgs.msg import Int32MultiArray
+from sensor_msgs.msg import JointState
 
 class HexTrajectoryControl(object):
     def __init__(self):
@@ -16,8 +16,10 @@ class HexTrajectoryControl(object):
            [0.0, 0.0, 0, 0, 0.0, 0.0] for i in range(1)
         ]
         self.how_long = 0.0
-
+        self.joint_states_vector = [0,0,0,0,0,0]
         self.get_vel_cmd = rospy.Subscriber('/target_vel_hex', Float64MultiArray ,self.get_vel_cmd_callback)
+        
+        self.joint_feedback = rospy.Subscriber('/joint_states', JointState ,self.joint_feedback_callback)
 
         self.qdot_pub = rospy.Publisher(
                         '/pi_hardware_interface/qdot_cmd',
@@ -29,11 +31,49 @@ class HexTrajectoryControl(object):
 
     def get_vel_cmd_callback(self, msg):
         self.trajectory_list = [
-           msg.data[:5] for i in range(1)
+           msg.data[:6] for i in range(1)
            
         ]
         # print(msg.data)
         self.how_long = msg.data[-1]*1000
+    
+    def joint_feedback_callback(self, msg):
+        target_names = ['cart_x', 'cart_y', 'cart_z', 'ang_u', 'ang_v', 'ang_w']
+        # Extract indices of target joints
+        indices = [msg.name.index(name) for name in target_names if name in msg.name]
+
+        # Extract positions of target joints using indices
+        self.joint_states_vector = [i * 1000 for i in [msg.position[i] for i in indices]]
+        # print(self.joint_states_vector)
+        
+    def is_within_range(self, values, min_range, max_range):
+        """
+        Check if each value in the list is within the specified range.
+
+        Args:
+            values (list): List of numbers to check.
+            min_range (list): List of minimum values for each component.
+            max_range (list): List of maximum values for each component.
+
+        Returns:
+            bool: True if all values are within range, False otherwise.
+        """
+        # Ensure all lists have the same length
+        if len(values) != len(min_range) or len(values) != len(max_range):
+            raise ValueError("All lists must have the same length.")
+
+        # Check if each value is within the range
+        return all(min_val <= val <= max_val for val, min_val, max_val in zip(values, min_range, max_range))
+
+    # # Example usage
+    # values = [5, 10, 15]
+    # min_range = [0, 5, 10]
+    # max_range = [10, 15, 20]
+
+    # if is_within_range(values, min_range, max_range):
+    #     print("All values are within range.")
+    # else:
+    #     print("Some values are out of range.")
 
     def publish(self, trajectory: list, qdot_period:float=50):
         """
@@ -56,6 +96,16 @@ class HexTrajectoryControl(object):
             trajectory_point = JointTrajectoryPoint()
             trajectory_point.velocities = point
             print(point)
+
+            # ref_list = [1,1,1,1,1,1]
+            # [i * -19 for i in [1] * 6]
+            if self.is_within_range(self.joint_states_vector, [-50, -50, -25, -0.26, -0.26, -0.52], [50, 50, 25, 0.26, 0.26, 0.52]):
+                print("All joints are within range.")
+            else:
+                print("Some joints are out of range.")
+                for num in self.joint_states_vector:
+                    print(f"{num:.4f}")
+
             for element in point:
                 if abs(element) > 20:
                     print(f"WARNING: Velocity command ({element}) is > max (20 mm/s).")
@@ -75,9 +125,9 @@ class HexTrajectoryControl(object):
         for i in range(2):
             # howlong = 4*1000
             self.publish(self.trajectory_list, self.how_long)
-            rospy.sleep(1)
+            rospy.sleep(0.01)
 
 if __name__ == "__main__":
     node = HexTrajectoryControl()
-    # while not rospy.is_shutdown():
-    node.run()
+    while not rospy.is_shutdown():
+        node.run()
