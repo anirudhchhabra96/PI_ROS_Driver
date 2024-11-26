@@ -24,7 +24,7 @@ class HexTrajectoryControl(object):
         self.qdot_pub = rospy.Publisher(
                         '/pi_hardware_interface/qdot_cmd',
                         JointTrajectory,
-                        queue_size=10
+                        queue_size=1
         )
 
         # Each qdot trajectory point will execute for this time (in ms).
@@ -32,10 +32,10 @@ class HexTrajectoryControl(object):
     def get_vel_cmd_callback(self, msg):
         self.trajectory_list = [
            msg.data[:6] for i in range(1)
-           
         ]
         # print(msg.data)
         self.how_long = msg.data[-1]*1000
+        self.publish(self.trajectory_list, self.how_long)
     
     def joint_feedback_callback(self, msg):
         target_names = ['cart_x', 'cart_y', 'cart_z', 'ang_u', 'ang_v', 'ang_w']
@@ -121,13 +121,16 @@ class HexTrajectoryControl(object):
         #    [-20.0, 0.0, 0, 0, 0.0, 0.0] for i in range(1)
         # ]
 
+        # self.publish(self.trajectory_list, self.how_long)
+        rospy.sleep(0.5)
+
         #while not rospy.is_shutdown():
-        for i in range(2):
+        # for i in range(2):
             # howlong = 4*1000
-            self.publish(self.trajectory_list, self.how_long)
-            rospy.sleep(0.5)
+            
 
 if __name__ == "__main__":
     node = HexTrajectoryControl()
     while not rospy.is_shutdown():
-        node.run()
+        # node.run()
+        rospy.spin()
