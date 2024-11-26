@@ -12,7 +12,7 @@ msg.data = [0, 0, 0, 0, 0, 0, 1]  # Example list of integers
 k = 0
 
 while not rospy.is_shutdown():
-    msg.data = [0, 0, 0, 0, 0, 10*math.sin(k), 1]
+    msg.data = [0, 0, 0, 0, 0, 20*math.sin(k), 1]
     # msg.data = [10*math.sin(k), 0, 0, 0, 0, 0, 1]
     k = k + 1
     pub.publish(msg)

@@ -99,7 +99,7 @@ class HexTrajectoryControl(object):
 
             # ref_list = [1,1,1,1,1,1]
             # [i * -19 for i in [1] * 6]
-            if self.is_within_range(self.joint_states_vector, [-50, -50, -25, -0.26, -0.26, -0.52], [50, 50, 25, 0.26, 0.26, 0.52]):
+            if self.is_within_range(self.joint_states_vector, [-50, -50, -25, -260, -260, -520], [50, 50, 25, 260, 260, 520]):
                 print("All joints are within range.")
             else:
                 print("Some joints are out of range.")
@@ -125,7 +125,7 @@ class HexTrajectoryControl(object):
         for i in range(2):
             # howlong = 4*1000
             self.publish(self.trajectory_list, self.how_long)
-            rospy.sleep(0.01)
+            rospy.sleep(0.5)
 
 if __name__ == "__main__":
     node = HexTrajectoryControl()
