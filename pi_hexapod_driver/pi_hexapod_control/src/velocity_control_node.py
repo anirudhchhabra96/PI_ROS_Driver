@@ -65,16 +65,6 @@ class HexTrajectoryControl(object):
         # Check if each value is within the range
         return all(min_val <= val <= max_val for val, min_val, max_val in zip(values, min_range, max_range))
 
-    # # Example usage
-    # values = [5, 10, 15]
-    # min_range = [0, 5, 10]
-    # max_range = [10, 15, 20]
-
-    # if is_within_range(values, min_range, max_range):
-    #     print("All values are within range.")
-    # else:
-    #     print("Some values are out of range.")
-
     def publish(self, trajectory: list, qdot_period:float=50):
         """
         Commands hexapod to execute trajectory.
@@ -117,20 +107,18 @@ class HexTrajectoryControl(object):
 
 
     def run(self):
-        # trajectory = [
-        #    [-20.0, 0.0, 0, 0, 0.0, 0.0] for i in range(1)
-        # ]
-
-        # self.publish(self.trajectory_list, self.how_long)
-        rospy.sleep(0.5)
-
-        #while not rospy.is_shutdown():
-        # for i in range(2):
-            # howlong = 4*1000
-            
+        trajectory = [
+           [0, 0.0, 0.0, 2.0, 0.0, 0.0] for i in range(1)
+        ]
+        
+        for i in range(2):
+            self.publish(trajectory, 500)
+            rospy.sleep(0.5)
+        
+    
 
 if __name__ == "__main__":
     node = HexTrajectoryControl()
+    # node.run()
     while not rospy.is_shutdown():
-        # node.run()
         rospy.spin()
