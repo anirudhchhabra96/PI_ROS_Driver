@@ -40,7 +40,7 @@ while not rospy.is_shutdown():
 
     # i += 1
     pub.publish(msg)
-    rospy.sleep(0.001)
+    rospy.sleep(0.01)
 
 
 

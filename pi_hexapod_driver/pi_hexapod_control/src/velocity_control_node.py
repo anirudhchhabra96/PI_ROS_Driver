@@ -87,8 +87,6 @@ class HexTrajectoryControl(object):
             trajectory_point.velocities = point
             print(point)
 
-            # ref_list = [1,1,1,1,1,1]
-            # [i * -19 for i in [1] * 6]
             if self.is_within_range(self.joint_states_vector, [-50, -50, -25, -260, -260, -520], [50, 50, 25, 260, 260, 520]):
                 print("All joints are within range.")
             else:
@@ -108,12 +106,12 @@ class HexTrajectoryControl(object):
 
     def run(self):
         trajectory = [
-           [0, 0.0, 0.0, 2.0, 0.0, 0.0] for i in range(1)
+           [0, 0.0, 20.0, 0, 0.0, 0] for i in range(1)
         ]
         
         for i in range(2):
-            self.publish(trajectory, 500)
-            rospy.sleep(0.5)
+            self.publish(trajectory,500)
+            rospy.sleep(1)
         
     
 
