@@ -38,6 +38,7 @@ HardwareInterface::HardwareInterface()
   , latest_error_id_(0)
 {
   joint_position_command_.fill(0.0);
+  joint_velocity_command_.fill(0.0);
   joint_positions_.fill(0.0);
   joint_velocities_.fill(0.0);
   joint_efforts_.fill(0.0);
@@ -49,6 +50,7 @@ HardwareInterface::HardwareInterface()
 
 bool HardwareInterface::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw_nh)
 {
+  ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
   if (!visual_joint_generator_.init(root_nh, robot_hw_nh))
   {
     ROS_ERROR_STREAM(
@@ -112,6 +114,16 @@ bool HardwareInterface::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw
     return false;
   }
 
+  if (!root_nh.getParam("hardware_interface/velocity_joints", velocity_joint_names_))
+  {
+    ROS_ERROR_STREAM("Cannot find required parameter "
+                     << root_nh.resolveName("hardware_interface/joints")
+                     << " on the parameter server.");
+    return false;
+  }
+
+  
+
   // get communication_timeout_ms from parameter server
   int32_t communication_timeout_ms = robot_hw_nh.param("communication_timeout_ms", 7000);
   if (communication_timeout_ms <= 0)
@@ -129,6 +141,7 @@ bool HardwareInterface::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw
   bool is_auto_referencing = robot_hw_nh.param("auto_referencing", false);
   bool is_sim              = robot_hw_nh.param("is_sim", false);
   prefer_stop_over_halt_   = robot_hw_nh.param("prefer_stop_over_halt", false);
+  
 
   ROS_INFO("Initializing hexapod driver");
   ROS_DEBUG_COND(
@@ -182,7 +195,19 @@ bool HardwareInterface::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw
       joint_names_[i], &joint_positions_[i], &joint_velocities_[i], &joint_efforts_[i]));
 
     pj_interface_.registerHandle(hardware_interface::JointHandle(
-      js_interface_.getHandle(joint_names_[i]), &joint_position_command_[i]));
+       js_interface_.getHandle(joint_names_[i]), &joint_position_command_[i]));
+
+
+  }
+
+  for (std::size_t i = 0; i < velocity_joint_names_.size(); i++)
+  {
+    vjs_interface_.registerHandle(hardware_interface::JointStateHandle(
+      velocity_joint_names_[i], &vj_positions_[i], &vj_velocities_[i], &vj_efforts_[i]));
+
+
+    vj_interface_.registerHandle(hardware_interface::JointHandle(
+      vjs_interface_.getHandle(velocity_joint_names_[i]), &joint_velocity_command_[i]));
   }
 
   for (std::size_t i = 0; i < visual_joint_names_.size(); ++i)
@@ -197,6 +222,8 @@ bool HardwareInterface::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw
 
   registerInterface(&js_interface_);
   registerInterface(&pj_interface_);
+  //registerInterface(&vjs_interface_);
+  //registerInterface(&vj_interface_);
 
   // Open connection to hexapod
   if (!pi_driver_->connect())
@@ -235,6 +262,9 @@ bool HardwareInterface::init(ros::NodeHandle& root_nh, ros::NodeHandle& robot_hw
     robot_hw_nh.advertiseService("halt_hexapod", &HardwareInterface::haltServiceCallback, this);
   stop_srv_ =
     robot_hw_nh.advertiseService("stop_hexapod", &HardwareInterface::stopServiceCallback, this);
+
+  // Setup Velocity Command Subscriber
+  qdot_sub = robot_hw_nh.subscribe("qdot_cmd", 1, &HardwareInterface::qdotCallback, this);
 
   ROS_INFO("Loaded pi_hexapod_control hardware_interface");
   return true;
@@ -351,11 +381,82 @@ void HardwareInterface::read(const ros::Time& time, const ros::Duration& period)
   visual_joint_generator_.calculateVisualLinks(joint_positions_, visual_joint_positions_);
 }
 
+void HardwareInterface::qdotCallback(const trajectory_msgs::JointTrajectoryConstPtr& trajectory)
+{
+  const uint16_t num_joints = 6U;
+
+
+  if (trajectory->points[0].effort.size() > 0)
+  {
+    qdot_cycle_time_ = trajectory->points[0].effort[0];
+  }
+
+  if (trajectory->points[0].effort.size() > 1)
+  {
+    if (trajectory->points[0].effort[1])
+    {
+      ROS_INFO("Zeroing");
+      vector6d_t position_command;
+      for (int joint = 0; joint < num_joints; joint++)
+      {
+        qdot_command_[joint] = 0.0f;
+        position_command[joint] = 0.0f;
+      }
+
+        ROS_INFO("Zeroing....");
+        pi_driver_->writeControllerSpeed(10);
+        pi_driver_->writeControllerCommand(position_command);
+    }
+  }
+
+  vector6d_t command;
+  for (int joint = 0; joint < num_joints; joint++)
+  {
+    double velocity = trajectory->points[0].velocities[joint];
+
+    // Convert m/s to mm/ms
+    velocity = velocity * 0.001 * 0.001;
+
+    qdot_command_[joint] = velocity;
+  }
+
+  
+}
+
 void HardwareInterface::write(const ros::Time& time, const ros::Duration& period)
 {
+  const uint16_t num_joints = 6U;
+
+  ROS_INFO("Writing...");
+
+  vector6d_t position_command;
+  for (int joint = 0; joint < num_joints; joint++)
+  {
+    // Calculate the distance per point for this axis to reach 
+    // commanded velocity with the cycle time
+
+    // Calculate distance (meters = m/ms * ms)
+    double dist = qdot_command_[joint] * qdot_cycle_time_;
+    //ROS_INFO("Vel (mm/ms): %f, Cycle time (ms): %f, Dist (mm): %f", qdot_command_[joint], qdot_cycle_time_, dist);
+      
+    
+    // Add point for this joint at a distance from the current position that achieves
+    // velocity in cycle time.
+    position_command[joint] = joint_positions_[joint] + dist;
+  }
+
+  pi_driver_->writeControllerSpeed(qdot_cycle_time_);
+
+  ROS_INFO("Pos write");
+
+  pi_driver_->writeControllerCommand(position_command);
+
+
+
+  ROS_INFO("Writing driver status");
+
   if (control_mode_enabled_)
   {
-    pi_driver_->writeControllerCommand(joint_position_command_);
     publishDriverStatus();
   }
 }

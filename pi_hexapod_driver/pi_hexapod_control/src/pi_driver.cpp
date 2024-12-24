@@ -136,13 +136,20 @@ bool HardwarePiDriver::connect()
 
 bool HardwarePiDriver::requestControllerData(vector6d_t& values)
 {
-  // request current position
+  //request current position
   if (PI_qPOS(pi_id_, axis_, joint_pos_) == FALSE)
   {
     LOG_ERROR("Requesting Data from the Hexapod failed.");
     updateError();
     return false;
   }
+
+  // if (PI_qVLS(pi_id_, joint_pos_) == FALSE)
+  // {
+  //   LOG_ERROR("PI_qVLS failed");
+  //   updateError();
+  //   return false;
+  // }
 
   // transform values from millimeter to meter
   values[0] = joint_pos_[0] / 1000;
@@ -152,6 +159,40 @@ bool HardwarePiDriver::requestControllerData(vector6d_t& values)
   values[3] = joint_pos_[3] * M_PI / 180;
   values[4] = joint_pos_[4] * M_PI / 180;
   values[5] = joint_pos_[5] * M_PI / 180;
+  return true;
+}
+
+bool HardwarePiDriver::setVelocityMode(void)
+{
+  // SPA accepts (ItemID, PamID, PamValue)
+  // Set Trajectory Source to 1.
+  // 1 = Motion path determined by consecutive MOV commands
+  const unsigned int trajectory_source = 0x19001900;
+  const double value = 1;
+  // TODO: PI_SPA accepts szStrings argument, but I have no idea what to put there.
+  //PI_SPA(pi_id_, axis_, &trajectory_source, &value);
+
+  // Set Trajectory Execution to 1.
+  // 1 = Motion Profile is stored in a buffer before execution
+  const unsigned int motion_profile = 0x19001901;
+  //PI_SPA(pi_id_, axis_, &motion_profile, &value);
+
+  return true;
+}
+
+bool HardwarePiDriver::writeControllerSpeed(uint32_t cycle_time)
+{
+  // Set to max system speed to ensure commanded speed isn't limited
+  const double max_system_speed = 20;
+  if (PI_VLS(pi_id_, max_system_speed) == FALSE)
+  {
+    LOG_ERROR("Writing controller speed failed.");
+    updateError();
+    return false;
+  }
+
+  PI_SCT(pi_id_, cycle_time);
+
   return true;
 }
 
@@ -173,14 +214,14 @@ bool HardwarePiDriver::writeControllerCommand(const vector6d_t& values)
   values_in_mm_and_degree[4] = values[4] / M_PI * 180;
   values_in_mm_and_degree[5] = values[5] / M_PI * 180;
 
-  // command move to absolute position
+  // PI_MOV moves at the speed set with PI_VLS
   if (PI_MOV(pi_id_, axis_, values_in_mm_and_degree.data()) == FALSE)
   {
     LOG_ERROR("Writing Command to the Hexapod failed.");
     updateError();
     return false;
   }
-
+  
   if (!error_checking_)
   {
     updateError();
@@ -218,6 +259,15 @@ bool HardwarePiDriver::updateReferencedStatus()
   is_referenced_ = (referenced == TRUE);
   LOG_INFO_STREAM("Hexapod-Reference request successful. Status: " << std::boolalpha
                                                                    << is_referenced_);
+  /*
+  std::array<int, 6> vel_control = {TRUE, TRUE, TRUE, TRUE, TRUE, TRUE};
+  if (PI_VCO(pi_id_, axis_, vel_control.data()) == FALSE)
+  {
+    LOG_ERROR("PI_VCO Failed");
+    updateError();
+  }
+  */
+
 
   return true;
 }
