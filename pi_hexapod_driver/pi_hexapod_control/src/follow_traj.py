@@ -70,12 +70,12 @@ class TrajFollower():
     def run(self):
         while not rospy.is_shutdown():
             if self.goal_q is None or self.platform_q is None:
-                print("goal:", self.goal_q, "platform:", self.platform_q)
+                # print("goal:", self.goal_q, "platform:", self.platform_q)
                 continue
 
             diff = sciR.from_quat(self.goal_q) * sciR.from_quat(self.platform_q).inv()
             diff = diff.as_euler('xyz')
-            print("diff:", diff)
+            # print("diff:", diff)
 
             self.publish(self.k * diff)
 
@@ -87,9 +87,9 @@ class TrajFollower():
 
     def plot(self):
         diff = np.array(self.goal_list) - np.array(self.curr_list)
-        plt.plot(self.time_list, diff[:, 0], label="Roll Error")
-        plt.plot(self.time_list, diff[:, 1], label="Pitch Error")
-        plt.plot(self.time_list, diff[:, 2], label="Yaw Error")
+        plt.plot(self.time_list, diff[:, 0], label="Roll")
+        plt.plot(self.time_list, diff[:, 1], label="Pitch")
+        plt.plot(self.time_list, diff[:, 2], label="Yaw")
 
         # plt.plot(self.time_list, np.array(self.curr_list)[:, 0], label="Roll Cmd")
         # plt.plot(self.time_list, np.array(self.curr_list)[:, 1], label="Pitch Cmd")
@@ -97,7 +97,7 @@ class TrajFollower():
 
         plt.xlabel("Time (s)")
         plt.ylabel("Rotation (deg)")
-        plt.title("Satellite Target Tracking Error")
+        plt.title("Satellite Target Tracking - Attitude Error")
         plt.legend()
         plt.grid(True)
         plt.show()
