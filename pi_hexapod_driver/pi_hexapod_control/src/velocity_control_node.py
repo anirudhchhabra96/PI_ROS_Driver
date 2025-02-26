@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy
 
 from std_msgs.msg import Float64MultiArray
@@ -9,8 +9,6 @@ import time
 import warnings
 from sensor_msgs.msg import JointState
 import sys
-
-
 
 class HexTrajectoryControl(object):
     def __init__(self):
